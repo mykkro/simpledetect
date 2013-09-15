@@ -6,6 +6,8 @@
   var points = []
   var pointHistoryLength = 30
 
+  var $R = new DollarRecognizer();
+
   function initialize() {
     // The source video.
     video = doc.getElementById("v");
@@ -48,37 +50,47 @@
         var x1=0, y1=0, x2=width, y2=height;
         if(points.length) {
             var lastPoint = points[points.length-1]
-            x1 = lastPoint.x - sx/2
-            x2 = lastPoint.x + sx/2
-            y1 = lastPoint.y - sy/2
-            y2 = lastPoint.y + sy/2
+            x1 = lastPoint.X - sx/2
+            x2 = lastPoint.X + sx/2
+            y1 = lastPoint.Y - sy/2
+            y2 = lastPoint.Y + sy/2
         }
         var point = analyzeFrame(frame.data, x1, y1, x2, y2)
         if(point) {
             points.push(point)
-            if(points.length > pointHistoryLength) points.shift()
             var startPoint = (Math.PI/180)*0;
             var endPoint = (Math.PI/180)*360;
             context.beginPath();
-            context.arc(point.x,point.y,10,startPoint,endPoint,true);
+            context.arc(point.X,point.Y,10,startPoint,endPoint,true);
             context.fill();
             context.closePath();        
 
-            pathContext.clearRect ( 0 , 0 , pathContext.width , pathContext.height );
+        } 
+        /* redraw path */
+        pathContext.clearRect ( 0 , 0 , pathContext.width , pathContext.height );
+        pathContext.beginPath();
+        pathContext.rect(0, 0, width, height);
+        pathContext.fillStyle = 'yellow';
+        pathContext.fill();
+        for(var i=points.length-2; i>0; i--) {
             pathContext.beginPath();
-            pathContext.rect(0, 0, width, height);
-            pathContext.fillStyle = 'yellow';
-            pathContext.fill();
-            for(var i=points.length-2; i>0; i--) {
-                pathContext.beginPath();
-                pathContext.moveTo(points[i-1].x, points[i-1].y);
-                pathContext.lineTo(points[i].x, points[i].y);
-                var c = 255-Math.floor(255*i/points.length)
-                pathContext.strokeStyle = 'rgb('+c+','+c+','+c+')'
-                pathContext.stroke();
+            pathContext.moveTo(points[i-1].X, points[i-1].Y);
+            pathContext.lineTo(points[i].X, points[i].Y);
+            var c = 255-Math.floor(255*i/points.length)
+            pathContext.strokeStyle = 'rgb('+c+','+c+','+c+')'
+            pathContext.stroke();
+        }
+
+        if(points.length > pointHistoryLength) points.shift()
+        if(points.length>10) {
+            var pointsCopy = []
+            var i=0
+            while(i<points.length) {
+                pointsCopy.push(new Point(points[i].Y, points[i].Y)); 
+                i++
             }
-        } else {
-            if(points.length) points.shift()
+            var result = $R.Recognize(pointsCopy, false);
+            console.log(points.length+" "+result.Name+" "+result.Score)
         }
     }
 
@@ -106,7 +118,7 @@
         if(sumn < pixThreshold) return null
         x = sumx/sumn
         y = sumy/sumn
-        return { x: x, y: y }
+        return new Point(x,y)
     }
 
   function readFrame() {
